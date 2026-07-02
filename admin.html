@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Random Phrase Display</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+    line-height: 1.5;
+  }
+
+  /* Menu điều hướng */
+  #menu {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  #menu a {
+    padding: 8px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: #eee;
+    color: #333;
+    transition: background 0.2s;
+  }
+
+  #menu a:hover {
+    background: #ddd;
+  }
+
+  #menu a.active {
+    background: #006400;
+    color: #fff;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 24px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 28px 32px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+    color: #006400;
+  }
+
+  .subtitle {
+    color: #666;
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+  }
+
+  .field {
+    margin-bottom: 24px;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 0.95rem;
+    resize: vertical;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: #006400;
+    box-shadow: 0 0 0 3px rgba(0,100,0,0.15);
+  }
+
+  .hint {
+    color: #888;
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+
+  .duration-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="number"] {
+    width: 120px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  input[type="number"]:focus {
+    outline: none;
+    border-color: #006400;
+    box-shadow: 0 0 0 3px rgba(0,100,0,0.15);
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.05s;
+  }
+
+  button:active {
+    transform: translateY(1px);
+  }
+
+  .btn-save {
+    background: #006400;
+    color: #fff;
+  }
+
+  .btn-save:hover {
+    background: #008000;
+  }
+
+  .btn-reset {
+    background: #eee;
+    color: #333;
+  }
+
+  .btn-reset:hover {
+    background: #ddd;
+  }
+
+  .btn-open {
+    background: #0066cc;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-open:hover {
+    background: #0080ff;
+  }
+
+  /* Hiện thời gian chờ hiện tại */
+  #currentDuration {
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: #f0f7f0;
+    border: 1px solid #cde6cd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #006400;
+    font-weight: 600;
+  }
+
+  /* Thông báo chế độ lưu */
+  #mode {
+    margin-top: 8px;
+    padding: 8px 14px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #8d6e00;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #006400;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+  <nav id="menu">
+    <a href="index.html">Home</a>
+    <a href="admin.html" class="active">Admin</a>
+  </nav>
+
+  <div class="container">
+    <h1>Quản lý cụm từ hiển thị</h1>
+    <p class="subtitle">Chỉnh sửa danh sách cụm từ và thời gian giữa các lần random.</p>
+    <div id="mode">Đang kiểm tra chế độ lưu...</div>
+
+    <div class="field">
+      <label for="phrases">Danh sách cụm từ</label>
+      <textarea id="phrases" placeholder="Mỗi cụm từ trên một dòng&#10;Ví dụ:&#10;LEFT RIGHT&#10;FORWARD BACK&#10;PASS"></textarea>
+      <p class="hint">Mỗi dòng là một cụm từ. Các từ trong cùng một cụm từ cách nhau bởi dấu cách (sẽ được hiển thị mỗi từ một dòng).</p>
+    </div>
+
+    <div class="field">
+      <label for="duration">Thời gian giữa các lần random (giây)</label>
+      <div class="duration-row">
+        <input type="number" id="duration" min="1" step="1" value="15">
+        <span class="hint">Mặc định: 15 giây</span>
+      </div>
+      <div id="currentDuration">Đang tải...</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-save" id="saveBtn">Lưu</button>
+      <button class="btn-reset" id="resetBtn">Khôi phục mặc định</button>
+      <a href="index.html" class="btn-open" target="_blank">Mở trang hiển thị</a>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Đã lưu!</div>
+
+  <script>
+    const DEFAULT_PHRASES = [
+      "LEFT RIGHT",
+      "RIGHT LEFT",
+      "FORWARD BACK",
+      "BACK FORWARD",
+      "PASS",
+      "HOLD",
+      "FORWARD LEFT RIGHT",
+      "FORWARD RIGHT LEFT",
+      "BACK LEFT RIGHT",
+      "BACK RIGHT LEFT",
+      "FORWARD PASS",
+      "BACK PASS",
+      "FORWARD HOLD"
+    ];
+
+    const DEFAULT_DURATION_SEC = 15;
+
+    const phrasesEl = document.getElementById("phrases");
+    const durationEl = document.getElementById("duration");
+    const saveBtn = document.getElementById("saveBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const toast = document.getElementById("toast");
+    const currentDurationEl = document.getElementById("currentDuration");
+    const modeEl = document.getElementById("mode");
+
+    // Kiểm tra xem có server API không (local) hay chỉ static host (Netlify)
+    let hasServerApi = false;
+
+    async function checkServerApi() {
+      try {
+        const res = await fetch("/api/config", { method: "GET" });
+        hasServerApi = res.ok;
+      } catch (e) {
+        hasServerApi = false;
+      }
+      if (hasServerApi) {
+        modeEl.textContent = "Chế độ: Server API (lưu vào file phrases.json / config.json trên server)";
+        modeEl.style.background = "#e8f5e9";
+        modeEl.style.borderColor = "#a5d6a7";
+        modeEl.style.color = "#2e7d32";
+      } else {
+        modeEl.textContent = "Chế độ: Trình duyệt (lưu vào localStorage - áp dụng cho trình duyệt này)";
+        modeEl.style.background = "#fff8e1";
+        modeEl.style.borderColor = "#ffe082";
+        modeEl.style.color = "#8d6e00";
+      }
+    }
+
+    // Tải cấu hình hiện tại
+    async function loadConfig() {
+      let phrases = null;
+      let durationSec = DEFAULT_DURATION_SEC;
+
+      if (hasServerApi) {
+        // Server API mode
+        try {
+          const resP = await fetch("/api/phrases");
+          if (resP.ok) phrases = await resP.json();
+          const resC = await fetch("/api/config");
+          if (resC.ok) {
+            const cfg = await resC.json();
+            durationSec = cfg.displayDuration ? cfg.displayDuration / 1000 : DEFAULT_DURATION_SEC;
+          }
+        } catch (e) {
+          console.error("Lỗi tải từ API:", e);
+        }
+      }
+
+      // Static mode hoặc API thất bại: đọc từ localStorage, nếu không có thì fetch file
+      if (!phrases) {
+        const local = localStorage.getItem("phrases");
+        if (local) {
+          try { phrases = JSON.parse(local); } catch (e) {}
+        }
+        if (!phrases) {
+          try {
+            const res = await fetch("phrases.json");
+            if (res.ok) phrases = await res.json();
+          } catch (e) {}
+        }
+        if (!phrases) phrases = DEFAULT_PHRASES;
+
+        const localDur = localStorage.getItem("displayDuration");
+        if (localDur) {
+          const d = parseInt(localDur, 10);
+          if (d && d >= 1000) durationSec = d / 1000;
+        } else {
+          try {
+            const res = await fetch("config.json");
+            if (res.ok) {
+              const cfg = await res.json();
+              durationSec = cfg.displayDuration ? cfg.displayDuration / 1000 : DEFAULT_DURATION_SEC;
+            }
+          } catch (e) {}
+        }
+      }
+
+      phrasesEl.value = phrases.join("\n");
+      durationEl.value = durationSec;
+      currentDurationEl.textContent = `Thời gian chờ hiện tại: ${durationSec} giây`;
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    // Lưu
+    async function save() {
+      const phrases = phrasesEl.value
+        .split("\n")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      if (phrases.length === 0) {
+        showToast("Danh sách cụm từ không được để trống!");
+        return;
+      }
+
+      const durationSec = parseInt(durationEl.value, 10);
+      if (!durationSec || durationSec < 1) {
+        showToast("Thời gian phải là số nguyên ≥ 1 giây!");
+        return;
+      }
+
+      if (hasServerApi) {
+        // Server API mode: lưu vào file
+        try {
+          const resP = await fetch("/api/phrases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(phrases)
+          });
+          const resC = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ displayDuration: durationSec * 1000 })
+          });
+          if (resP.ok && resC.ok) {
+            currentDurationEl.textContent = `Thời gian chờ hiện tại: ${durationSec} giây`;
+            showToast("Đã lưu vào file server!");
+          } else {
+            showToast("Lỗi khi lưu vào server!");
+          }
+        } catch (e) {
+          showToast("Lỗi kết nối server!");
+        }
+      } else {
+        // Static mode: lưu vào localStorage
+        localStorage.setItem("phrases", JSON.stringify(phrases));
+        localStorage.setItem("displayDuration", String(durationSec * 1000));
+        currentDurationEl.textContent = `Thời gian chờ hiện tại: ${durationSec} giây`;
+        showToast("Đã lưu vào trình duyệt!");
+      }
+    }
+
+    // Khôi phục mặc định
+    async function reset() {
+      if (!confirm("Khôi phục danh sách và thời gian về mặc định?")) return;
+      if (hasServerApi) {
+        try {
+          await fetch("/api/phrases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(DEFAULT_PHRASES)
+          });
+          await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ displayDuration: DEFAULT_DURATION_SEC * 1000 })
+          });
+        } catch (e) {}
+      }
+      // Luôn xóa localStorage
+      localStorage.removeItem("phrases");
+      localStorage.removeItem("displayDuration");
+      await loadConfig();
+      showToast("Đã khôi phục mặc định!");
+    }
+
+    saveBtn.addEventListener("click", save);
+    resetBtn.addEventListener("click", reset);
+
+    // Khởi động
+    (async () => {
+      await checkServerApi();
+      await loadConfig();
+    })();
+  </script>
+</body>
+</html>

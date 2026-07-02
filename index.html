@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Phrase Display</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+
+  #phrase {
+    color: #006400;
+    font-size: clamp(2rem, 12vw, 12rem);
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0 0.2em;
+    user-select: none;
+  }
+
+  /* Menu điều hướng */
+  #menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+
+  #menu a {
+    padding: 8px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: #eee;
+    color: #333;
+    transition: background 0.2s;
+  }
+
+  #menu a:hover {
+    background: #ddd;
+  }
+
+  #menu a.active {
+    background: #006400;
+    color: #fff;
+  }
+
+  /* Hiện thời gian chờ */
+  #countdown {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(2rem, 6vw, 5rem);
+    font-weight: 800;
+    color: #006400;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 36px;
+    border-radius: 18px;
+    user-select: none;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+  <nav id="menu">
+    <a href="index.html" class="active">Home</a>
+    <a href="admin.html">Admin</a>
+  </nav>
+
+  <div id="phrase">LEFT RIGHT</div>
+
+  <div id="countdown">--</div>
+
+  <script>
+    const DEFAULT_DURATION = 15000; // 15 giây (ms)
+
+    // Bảng màu cho từng từ
+    const COLORS = [
+      "#006400", // xanh đậm
+      "#ff8c00", // cam
+      "#0066cc", // xanh dương
+      "#cc0000", // đỏ
+      "#8b008b", // tím đậm
+      "#b8860b", // vàng đậm
+      "#008b8b", // xanh ngọc
+      "#9932cc"  // tím orchid
+    ];
+
+    const phraseEl = document.getElementById("phrase");
+    const countdownEl = document.getElementById("countdown");
+
+    let PHRASES = [];
+    let DISPLAY_DURATION = DEFAULT_DURATION;
+    let currentIndex = -1;
+    let timerId = null;
+    let countdownInterval = null;
+    let remaining = 0;
+    let lastTick = 0;
+
+    // Tải danh sách cụm từ:
+    // - Ưu tiên localStorage (override từ admin trên static host)
+    // - Nếu không có, fetch từ phrases.json
+    async function loadPhrases() {
+      // Kiểm tra localStorage trước
+      const local = localStorage.getItem("phrases");
+      if (local) {
+        try {
+          PHRASES = JSON.parse(local);
+          return;
+        } catch (e) {}
+      }
+      // Fetch từ file phrases.json
+      try {
+        const res = await fetch("phrases.json");
+        if (res.ok) {
+          PHRASES = await res.json();
+        }
+      } catch (e) {
+        console.error("Lỗi tải phrases.json:", e);
+      }
+    }
+
+    // Tải cấu hình (thời gian):
+    // - Ưu tiên localStorage (override từ admin trên static host)
+    // - Nếu không có, fetch từ config.json
+    async function loadConfig() {
+      // Kiểm tra localStorage trước
+      const local = localStorage.getItem("displayDuration");
+      if (local) {
+        const d = parseInt(local, 10);
+        if (d && d >= 1000) {
+          DISPLAY_DURATION = d;
+          return;
+        }
+      }
+      // Fetch từ file config.json
+      try {
+        const res = await fetch("config.json");
+        if (res.ok) {
+          const cfg = await res.json();
+          DISPLAY_DURATION = cfg.displayDuration || DEFAULT_DURATION;
+        }
+      } catch (e) {
+        console.error("Lỗi tải config.json:", e);
+      }
+    }
+
+    // Trả về một chỉ số ngẫu nhiên khác với chỉ số hiện tại
+    function getRandomIndex(currentIndex) {
+      if (PHRASES.length <= 1) return 0;
+      let next;
+      do {
+        next = Math.floor(Math.random() * PHRASES.length);
+      } while (next === currentIndex);
+      return next;
+    }
+
+    // Trộn mảng màu (Fisher-Yates shuffle)
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function showNext() {
+      if (PHRASES.length === 0) return;
+      currentIndex = getRandomIndex(currentIndex);
+      const words = PHRASES[currentIndex].split(" ");
+      const colors = shuffle(COLORS);
+      phraseEl.innerHTML = words
+        .map((word, i) => `<span style="color:${colors[i % colors.length]}">${word}</span>`)
+        .join("<br>");
+    }
+
+    // Cập nhật hiển thị thời gian chờ đếm ngược
+    function startCountdown() {
+      remaining = DISPLAY_DURATION;
+      lastTick = Date.now();
+      countdownEl.textContent = Math.ceil(remaining / 1000) + "s";
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const delta = now - lastTick;
+        lastTick = now;
+        remaining -= delta;
+        if (remaining <= 0) {
+          remaining = DISPLAY_DURATION;
+        }
+        countdownEl.textContent = Math.ceil(remaining / 1000) + "s";
+      }, 100);
+    }
+
+    // Hiển thị ngay cụm từ đầu tiên, sau đó lặp lại theo DISPLAY_DURATION
+    function start() {
+      showNext();
+      startCountdown();
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(showNext, DISPLAY_DURATION);
+    }
+
+    // Khi click vào trang: chuyển sang cụm từ khác và reset bộ đếm thời gian
+    document.addEventListener("click", (e) => {
+      // Bỏ qua click vào menu
+      if (e.target.closest("#menu")) return;
+      showNext();
+      startCountdown();
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(showNext, DISPLAY_DURATION);
+    });
+
+    // Tự khởi động lại khi cấu hình trong localStorage thay đổi (từ admin.html)
+    window.addEventListener("storage", (e) => {
+      if (e.key === "phrases" || e.key === "displayDuration") {
+        location.reload();
+      }
+    });
+
+    // Khởi động: tải dữ liệu rồi start
+    (async () => {
+      await Promise.all([loadPhrases(), loadConfig()]);
+      start();
+    })();
+  </script>
+</body>
+</html>

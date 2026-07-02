@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: fb-training
+    runtime: node
+    plan: free
+    buildCommand: "echo 'No build needed'"
+    startCommand: "node server.js"
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
